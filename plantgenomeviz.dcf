@@ -1,0 +1,12 @@
+name: plantgenomeviz
+title: PlantGenomeViz
+username: Fortune Ogo-ndah Awala
+account: Fortune Ogo-ndah Awala
+server: posit.cloud
+hostUrl: https://api.posit.cloud/v1
+appId: 8188996
+bundleId: 8605471
+url: https://posit.cloud/content/8188996
+version: 1
+asMultiple: FALSE
+asStatic: FALSE

@@ -1,0 +1,101 @@
+#
+# This is the user-interface definition of a Shiny web application. You can
+# run the application by clicking 'Run App' above.
+#
+# Find out more about building applications with Shiny here:
+#
+#    https://shiny.posit.co/
+#
+
+# Load necessary libraries
+library(shiny)
+library(shinydashboard)
+library(ggplot2)
+library(variantspark)
+library(tidyverse)
+library(genomic.autocorr)
+library(DT)
+library(vcfR)
+library(yaml)
+library(ape) # For phylogenetic analysis
+
+# Define UI for application using shinydashboard
+ui <- dashboardPage(
+  dashboardHeader(title = "Plant Genome Visualization"),
+  dashboardSidebar(
+    sidebarMenu(
+      menuItem("Genome Visualization", tabName = "genome_viz", icon = icon("leaf")),
+      menuItem("Phylogenetic Analysis", tabName = "phylo_analysis", icon = icon("tree"))
+    )
+  ),
+  dashboardBody(
+    tabItems(
+      # Tab for Genome Visualization
+      tabItem(tabName = "genome_viz",
+              fluidRow(
+                fileInput('file1', 'Choose VCF File', accept = c('.vcf')),
+                actionButton("btn_viz", "Process and Visualize")
+              ),
+              fluidRow(
+                DTOutput('variantTable'),
+                plotOutput("genomePlot")
+              )
+      ),
+      # Tab for Phylogenetic Analysis
+      tabItem(tabName = "phylo_analysis",
+              fluidRow(
+                fileInput('file2', 'Choose Newick File', accept = c('.nwk', '.newick')),
+                actionButton("btn_phylo", "Load and Analyze")
+              ),
+              fluidRow(
+                plotOutput("phyloTree")
+              )
+      )
+    )
+  )
+)
+
+# Server logic to process data and generate visualizations
+server <- function(input, output) {
+  
+  observeEvent(input$btn_viz, {
+    req(input$file1)
+    
+    # Read the VCF file
+    vcf <- readVcf(input$file1$datapath, genome = "plant_genome")
+    
+    # Convert the VCF data to a data frame
+    vcf_df <- as.data.frame(vcf)
+    
+    # Output the variant table
+    output$variantTable <- renderDT({
+      vcf_df
+    }, options = list(pageLength = 5))
+    
+    # Generate the genome plot
+    output$genomePlot <- renderPlot({
+      req(vcf_df)
+      
+      # Plotting code for genome visualization
+      ggplot(vcf_df, aes(x = POS, y = CHROM, color = REF)) +
+        geom_point() +
+        theme_minimal() +
+        labs(x = "Position", y = "Chromosome", title = "Plant Genome Variants")
+    })
+  })
+  
+  observeEvent(input$btn_phylo, {
+    req(input$file2)
+    
+    # Read the Newick file for phylogenetic tree
+    phylo_tree <- read.tree(input$file2$datapath)
+    
+    # Generate the phylogenetic tree plot
+    output$phyloTree <- renderPlot({
+      plot(phylo_tree, main = "Phylogenetic Tree")
+    })
+  })
+}
+
+# Run the application
+shinyApp(ui = ui, server = server)
