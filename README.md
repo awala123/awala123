@@ -1,7 +1,8 @@
-### Hi there 👋
+### PlantGenomeViz R Shiny App
+Developed by Dr. Fortune O. Awala 👋
 
 <!--
-# Plant Genome Visualization Shiny App
+# Plant Genome Visualization R Shiny App
 
 ## Overview
 The Plant Genome Visualization app is an interactive tool built with R Shiny, designed to facilitate the exploration and analysis of plant genomic data. It provides a user-friendly interface for visualizing genomic variants and phylogenetic trees, aiding researchers in the field of plant genomics.
