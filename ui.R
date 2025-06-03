@@ -18,6 +18,8 @@ library(DT)
 library(vcfR)
 library(yaml)
 library(ape) # For phylogenetic analysis
+library(VariantAnnotation)
+
 
 # Define UI for application using shinydashboard
 ui <- dashboardPage(
@@ -63,15 +65,15 @@ server <- function(input, output) {
     
     # Read the VCF file
     vcf <- readVcf(input$file1$datapath, genome = "plant_genome")
-    
+
     # Convert the VCF data to a data frame
-    vcf_df <- as.data.frame(vcf)
-    
+    vcf_df <- as.data.frame(info(vcf))
+
     # Output the variant table
     output$variantTable <- renderDT({
       vcf_df
     }, options = list(pageLength = 5))
-    
+
     # Generate the genome plot
     output$genomePlot <- renderPlot({
       req(vcf_df)
