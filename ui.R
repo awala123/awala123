@@ -35,6 +35,8 @@ ui <- dashboardPage(
       # Tab for Genome Visualization
       tabItem(tabName = "genome_viz",
               fluidRow(
+                selectInput("server1", "Server:",
+                            c("Breedbase"="https://musabase.org", "BrAPI test server" = "https://test-server.brapi.org")),
                 fileInput('file1', 'Choose VCF File', accept = c('.vcf')),
                 actionButton("btn_viz", "Process and Visualize")
               ),
@@ -60,29 +62,58 @@ ui <- dashboardPage(
 # Server logic to process data and generate visualizations
 server <- function(input, output) {
   
-  observeEvent(input$btn_viz, {
-    req(input$file1)
+  observeEvent(input$btn_viz, { print(input$server1)
+    req(input$server1)
     
     # Read the VCF file
     vcf <- readVcf(input$file1$datapath, genome = "plant_genome")
 
+    #set brapi
+    brapi_url  <- paste0(input$server1, "/brapi/v2")
+    call_url  <- paste0(brapi_url, "/variantsets", "/811p14","/calls","?page=0&pageSize=5000")
+
+    #make request
+    req <- httr2::request(utils::URLencode(call_url))
+    req <- httr2::req_method(req, "GET")
+    req <- httr2::req_headers(req, "Accept-Encoding" = "gzip, deflate")
+    
+    #handle repsonse
+    response <- httr2::req_perform(req)
+    flatten_results <- jsonlite::fromJSON(httr2::resp_body_string(response), flatten = TRUE)$result$data
+    fr_df = data.frame(flatten_results$variantName,flatten_results$genotype.values,flatten_results$callSetName)
+    wide_df <- pivot_wider(fr_df, names_from = flatten_results.callSetName, values_from = flatten_results.genotype.values)
+    dataMat <- as.matrix(wide_df[,-1])
+    rownames(dataMat) <- wide_df$flatten_results.variantName
+
     # Convert the VCF data to a data frame
     vcf_df <- as.data.frame(info(vcf))
-
+   
     # Output the variant table
     output$variantTable <- renderDT({
-      vcf_df
-    }, options = list(pageLength = 5))
+      dataMat #vcf_df
+    }, options = list(pageLength = 20))
+    
+    ##### plot
+    variant_url  <- paste0(brapi_url, "/variantsets", "/811p14","/variants","?page=0&pageSize=5000")
+    
+    #make request
+    req <- httr2::request(utils::URLencode(variant_url))
+    req <- httr2::req_method(req, "GET")
+    req <- httr2::req_headers(req, "Accept-Encoding" = "gzip, deflate")
+    
+    #handle repsonse
+    response <- httr2::req_perform(req)
+    flatten_results2 <- jsonlite::fromJSON(httr2::resp_body_string(response), flatten = TRUE)$result$data
 
+    
     # Generate the genome plot
     output$genomePlot <- renderPlot({
-      req(vcf_df)
-      
+      req(flatten_results2)
       # Plotting code for genome visualization
-      ggplot(vcf_df, aes(x = POS, y = CHROM, color = REF)) +
+      ggplot(dataMat, aes(y = flatten_results2$start, x = flatten_results2$referenceName, color = flatten_results2$referenceBases)) +
         geom_point() +
         theme_minimal() +
-        labs(x = "Position", y = "Chromosome", title = "Plant Genome Variants")
+        labs(y = "Position", x = "Chromosome", title = "Plant Genome Variants")
     })
   })
   
@@ -100,4 +131,4 @@ server <- function(input, output) {
 }
 
 # Run the application
-shinyApp(ui = ui, server = server)
+shinyApp(ui = ui, server = server, options = list(height = 1000, width=1000))
