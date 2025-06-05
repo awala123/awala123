@@ -36,12 +36,12 @@ ui <- dashboardPage(
   dashboardSidebar(
     sidebarMenu(
       menuItem("Genome Visualization", tabName = "genome_viz", icon = icon("leaf")),
-      menuItem("Phylogenetic Analysis", tabName = "phylo_analysis", icon = icon("tree")),
-      menuItem("Phylogenetic Bootstrap", tabName = "bootstrap_analysis", icon = icon("tree")),
       menuItem("SNP Density Plot", tabName = "snp_density", icon = icon("chart-bar")),
       menuItem("Manhattan Plot", tabName = "manhattan_plot", icon = icon("map")),
-      menuItem("Circular Genome", tabName = "circular_genome", icon = icon("circle-notch")),
       menuItem("Genomic Variation Heatmap", tabName = "heatmap_plot", icon = icon("fire")),
+      menuItem("Phylogenetic Analysis", tabName = "phylo_analysis", icon = icon("tree")),
+      menuItem("Phylogenetic Bootstrap", tabName = "bootstrap_analysis", icon = icon("tree")),
+      menuItem("Circular Genome", tabName = "circular_genome", icon = icon("circle-notch")),
       menuItem("Co-expression Network", tabName = "coexpression_network", icon = icon("project-diagram")),
       menuItem("Functional Annotations", tabName = "functional_annotations", icon = icon("dna")),
       menuItem("PCA Analysis", tabName = "pca_analysis", icon = icon("chart-line"))
@@ -54,12 +54,56 @@ ui <- dashboardPage(
               fluidRow(
                 selectInput("server1", "Server:",
                             c("Breedbase"="https://musabase.org", "BrAPI test server" = "https://test-server.brapi.org")),
-                fileInput('file1', 'Choose VCF File', accept = c('.vcf')),
+                #fileInput('file1', 'Choose VCF File', accept = c('.vcf')),
                 actionButton("btn_viz", "Process and Visualize")
               ),
               fluidRow(
                 DTOutput('variantTable'),
                 plotOutput("genomePlot")
+              )
+      ),
+      #Tab for SNP Plots
+      tabItem(tabName = "snp_density",
+              fluidRow(
+                #fileInput('file3', 'Choose VCF File', accept = c('.vcf')),
+                actionButton("btn_density", "Generate SNP Density Plot")
+              ),
+              fluidRow(
+                plotOutput("densityPlot")
+              )
+      ),
+      # Tab for Manhattan plot
+      tabItem(tabName = "manhattan_plot",
+              fluidRow(
+                #fileInput('file4', 'Choose VCF File', accept = c('.vcf')),
+                actionButton("btn_manhattan", "Generate Manhattan Plot")
+              ),
+              fluidRow(
+                plotOutput("manhattanPlot")
+              )
+      ),
+      
+      #Tab for Heatmap plot
+      tabItem(tabName = "heatmap_plot",
+              fluidRow(
+                #fileInput('file6', 'Choose VCF File', accept = c('.vcf')),
+                numericInput("bin_size","Set bin size:", value=5000, min=1000, max=50000, step=1000),
+                textInput("chromosome", "Chr", value = "chr02", width = NULL, placeholder = NULL),
+                actionButton("btn_heatmap", "Generate Heatmap")
+              ),
+              fluidRow(
+                plotOutput("heatmapPlot", height = "600px")
+              )
+      ),
+      # Tab for Circular Genome Visualization
+      tabItem(tabName = "circular_genome",
+              fluidRow(
+                fileInput('file5', 'Choose VCF File', accept = c('.vcf')),
+                sliderInput("zoom_region", "Zoom into Genomic Region", min = 1, max = 5000000, value = c(1, 100000)),
+                actionButton("btn_circular", "Generate Circular Genome Plot")
+              ),
+              fluidRow(
+                plotOutput("circularGenomePlot", height = "600px")
               )
       ),
       # Tab for Phylogenetic Analysis
@@ -83,51 +127,6 @@ ui <- dashboardPage(
                 plotOutput("bootstrapTreePlot", height = "600px")
               )
       ),
-      #Tab for SNP Plots
-      tabItem(tabName = "snp_density",
-              fluidRow(
-                fileInput('file3', 'Choose VCF File', accept = c('.vcf')),
-                actionButton("btn_density", "Generate SNP Density Plot")
-              ),
-              fluidRow(
-                plotOutput("densityPlot")
-              )
-      ),
-      # Tab for Manhattan plot
-      tabItem(tabName = "manhattan_plot",
-              fluidRow(
-                fileInput('file4', 'Choose VCF File', accept = c('.vcf')),
-                actionButton("btn_manhattan", "Generate Manhattan Plot")
-              ),
-              fluidRow(
-                plotOutput("manhattanPlot")
-              )
-      ),
-      # Tab for Circular Genome Visualization
-      tabItem(tabName = "circular_genome",
-              fluidRow(
-                fileInput('file5', 'Choose VCF File', accept = c('.vcf')),
-                sliderInput("zoom_region", "Zoom into Genomic Region", min = 1, max = 5000000, value = c(1, 100000)),
-                actionButton("btn_circular", "Generate Circular Genome Plot")
-              ),
-              fluidRow(
-                plotOutput("circularGenomePlot", height = "600px")
-              )
-      ),
-      
-      #Tab for Heatmap plot
-      tabItem(tabName = "heatmap_plot",
-              fluidRow(
-                fileInput('file6', 'Choose VCF File', accept = c('.vcf')),
-                numericInput("bin_size","Set bin size:", value=5000, min=1000, max=50000, step=1000),
-                textInput("chromosome", "Chr", value = "chr02", width = NULL, placeholder = NULL),
-                actionButton("btn_heatmap", "Generate Heatmap")
-              ),
-              fluidRow(
-                plotOutput("heatmapPlot", height = "600px")
-              )
-      ),
-      
       #Tab for coexpression_network
       tabItem(tabName = "coexpression_network",
               fluidRow(
@@ -174,7 +173,7 @@ server <- function(input, output) {
     req(input$server1)
     
     # Read the VCF file
-    vcf <- readVcf(input$file1$datapath, genome = "plant_genome")
+    #vcf <- readVcf(input$file1$datapath, genome = "plant_genome")
 
     #set brapi
     brapi_url  <- paste0(input$server1, "/brapi/v2")
@@ -195,7 +194,7 @@ server <- function(input, output) {
     rownames(dataMat) <- wide_df$flatten_results.variantName
 
     # Convert the VCF data to a data frame
-    vcf_df <- as.data.frame(info(vcf))
+    #vcf_df <- as.data.frame(info(vcf))
    
     # Output the variant table
     output$variantTable <- renderDT({
@@ -259,7 +258,8 @@ server <- function(input, output) {
     })
   })
   
-  variant_url  <- paste0(brapi_url, "/variantsets", "/811p14","/variants","?page=0&pageSize=500")
+  brapi_url  <- paste("https://musabase.org", "brapi/v2", sep="/")
+  variant_url  <- paste(brapi_url, "variantsets", "811p14","variants","?page=0&pageSize=500", sep="/")
   
   #make request
   req <- httr2::request(utils::URLencode(variant_url))
@@ -271,10 +271,10 @@ server <- function(input, output) {
   variant_vcf <- jsonlite::fromJSON(httr2::resp_body_string(response), flatten = TRUE)$result$data
   
   observeEvent(input$btn_density, {
-    req(input$file3)
+    #req(input$file3)
     
     # Read the VCF file
-    vcf <- readVcf(input$file3$datapath, genome = "plant_genome")
+    #vcf <- readVcf(input$file3$datapath, genome = "plant_genome")
     
     # Extract position data and summarize SNP density
     #snp_positions <- as.numeric(info(vcf)$POS)
@@ -290,7 +290,7 @@ server <- function(input, output) {
   })
   
   observeEvent(input$btn_manhattan, {
-    req(input$file4)
+    #req(input$file4)
 
     # Generate Manhattan plot
     output$manhattanPlot <- renderPlot({
@@ -338,25 +338,25 @@ server <- function(input, output) {
     #                      VAR = runif(nrow(info(vcf)), 0, 1))  # Simulated variation scores
     
     # Filter based on selected chromosome
-    vcf_filtered <- vcf_df[vcf_df$CHROM == input$chromosome, ]
-    #vcf_filtered = vcf_df
+    #vcf_filtered <- vcf_df[vcf_df$CHROM == input$chromosome, ]
+    vcf_filtered = vcf_df
     print(vcf_filtered)
     # Aggregate into bins for heatmap visualization
     #print(input$bin_size)
     vcf_binned <- vcf_filtered %>%
       mutate(Binned_POS = floor(vcf_filtered$POS / input$bin_size) * input$bin_size) %>%
       group_by(Binned_POS) %>%
-      summarize(Mean_VAR = mean(vcf_filtered$VAR), nrow = 1)
+      summarize(Mean_VAR = mean(vcf_filtered$VAR), nrow = 2)
     
     # Generate Heatmap
     output$heatmapPlot <- renderPlot({
-      heatmap_matrix <- matrix(vcf_binned$Mean_VAR,nrow=2)
+      heatmap_matrix <- matrix(vcf_filtered$VAR,nrow=6)
       print(vcf_binned)
       print(heatmap_matrix)
       heatmap(heatmap_matrix,
-              name = "Genomic Variation",
-              col = colorRamp2(c(min(vcf_binned$Mean_VAR), max(vcf_binned$Mean_VAR)), c("blue", "red")),
-              column_title = paste("Genomic Variation Heatmap -", input$chromosome),
+              xlab = "Genomic Variation",
+              # col = colorRamp2(c(min(vcf_filtered$VAR), max(vcf_filtered$VAR)), c("blue", "red")),
+              main = paste("Genomic Variation Heatmap -", input$chromosome),
               cluster_columns = FALSE)
     })
   }) 
