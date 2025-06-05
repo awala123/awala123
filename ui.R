@@ -62,7 +62,7 @@ ui <- dashboardPage(
 # Server logic to process data and generate visualizations
 server <- function(input, output) {
   
-  observeEvent(input$btn_viz, { print(input$server1)
+  observeEvent(input$btn_viz, {
     req(input$server1)
     
     # Read the VCF file
@@ -70,7 +70,7 @@ server <- function(input, output) {
 
     #set brapi
     brapi_url  <- paste0(input$server1, "/brapi/v2")
-    call_url  <- paste0(brapi_url, "/variantsets", "/811p14","/calls","?page=0&pageSize=5000")
+    call_url  <- paste0(brapi_url, "/variantsets", "/811p14","/calls","?page=0&pageSize=500")
 
     #make request
     req <- httr2::request(utils::URLencode(call_url))
@@ -80,6 +80,7 @@ server <- function(input, output) {
     #handle repsonse
     response <- httr2::req_perform(req)
     flatten_results <- jsonlite::fromJSON(httr2::resp_body_string(response), flatten = TRUE)$result$data
+    
     fr_df = data.frame(flatten_results$variantName,flatten_results$genotype.values,flatten_results$callSetName)
     wide_df <- pivot_wider(fr_df, names_from = flatten_results.callSetName, values_from = flatten_results.genotype.values)
     dataMat <- as.matrix(wide_df[,-1])
@@ -90,11 +91,11 @@ server <- function(input, output) {
    
     # Output the variant table
     output$variantTable <- renderDT({
-      dataMat #vcf_df
-    }, options = list(pageLength = 20))
+      dataMat
+    }, options = list(pageLength = 20, scrollX = TRUE))
     
     ##### plot
-    variant_url  <- paste0(brapi_url, "/variantsets", "/811p14","/variants","?page=0&pageSize=5000")
+    variant_url  <- paste0(brapi_url, "/variantsets", "/811p14","/variants","?page=0&pageSize=50")
     
     #make request
     req <- httr2::request(utils::URLencode(variant_url))
@@ -104,7 +105,6 @@ server <- function(input, output) {
     #handle repsonse
     response <- httr2::req_perform(req)
     flatten_results2 <- jsonlite::fromJSON(httr2::resp_body_string(response), flatten = TRUE)$result$data
-
     
     # Generate the genome plot
     output$genomePlot <- renderPlot({
@@ -131,4 +131,4 @@ server <- function(input, output) {
 }
 
 # Run the application
-shinyApp(ui = ui, server = server, options = list(height = 1000, width=1000))
+shinyApp(ui = ui, server = server, options = list(height = 900, width=1500))
