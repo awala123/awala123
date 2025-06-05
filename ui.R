@@ -119,6 +119,8 @@ ui <- dashboardPage(
       tabItem(tabName = "heatmap_plot",
               fluidRow(
                 fileInput('file6', 'Choose VCF File', accept = c('.vcf')),
+                numericInput("bin_size","Set bin size:", value=5000, min=1000, max=50000, step=1000),
+                textInput("chromosome", "Chr", value = "chr02", width = NULL, placeholder = NULL),
                 actionButton("btn_heatmap", "Generate Heatmap")
               ),
               fluidRow(
@@ -257,6 +259,17 @@ server <- function(input, output) {
     })
   })
   
+  variant_url  <- paste0(brapi_url, "/variantsets", "/811p14","/variants","?page=0&pageSize=500")
+  
+  #make request
+  req <- httr2::request(utils::URLencode(variant_url))
+  req <- httr2::req_method(req, "GET")
+  req <- httr2::req_headers(req, "Accept-Encoding" = "gzip, deflate")
+  
+  #handle repsonse
+  response <- httr2::req_perform(req)
+  variant_vcf <- jsonlite::fromJSON(httr2::resp_body_string(response), flatten = TRUE)$result$data
+  
   observeEvent(input$btn_density, {
     req(input$file3)
     
@@ -264,7 +277,8 @@ server <- function(input, output) {
     vcf <- readVcf(input$file3$datapath, genome = "plant_genome")
     
     # Extract position data and summarize SNP density
-    snp_positions <- as.numeric(info(vcf)$POS)
+    #snp_positions <- as.numeric(info(vcf)$POS)
+    snp_positions <- variant_vcf$start
     
     # Create a density plot
     output$densityPlot <- renderPlot({
@@ -277,18 +291,10 @@ server <- function(input, output) {
   
   observeEvent(input$btn_manhattan, {
     req(input$file4)
-    
-    # Read the VCF file
-    vcf <- readVcf(input$file4$datapath, genome = "plant_genome")
-    
-    # Extract SNP positions, chromosome info, and association p-values
-    vcf_df <- data.frame(POS = as.numeric(info(vcf)$POS),
-                         CHROM = as.factor(info(vcf)$CHROM),
-                         PVAL = runif(nrow(info(vcf)), 0, 1))  # Simulated p-values
-    
+
     # Generate Manhattan plot
     output$manhattanPlot <- renderPlot({
-      ggplot(vcf_df, aes(x = POS, y = -log10(PVAL), color = CHROM)) +
+      ggplot(variant_vcf, aes(x = variant_vcf$start, y = -log10( runif(33, 0, 1) ), color = variant_vcf$referenceName)) +
         geom_point() +
         theme_minimal() +
         labs(x = "Genomic Position", y = "-log10(P-value)", title = "Genome-wide Manhattan Plot")
@@ -300,7 +306,7 @@ server <- function(input, output) {
     
     # Read the VCF file
     vcf <- readVcf(input$file5$datapath, genome = "plant_genome")
-    
+    print(vcf)
     # Convert VCF data into GRanges for visualization
     gr <- as(vcf, "GRanges")
     
@@ -317,30 +323,37 @@ server <- function(input, output) {
   })
  
   observeEvent(input$btn_heatmap, {
-    req(input$file6)
+    #req(input$file6)
     
     # Read the VCF file
-    vcf <- readVcf(input$file6$datapath, genome = "plant_genome")
+    #vcf <- readVcf(input$file6$datapath, genome = "plant_genome")
+    #print(variant_vcf)
+    vcf_df = data.frame(variant_vcf$start,variant_vcf$referenceName,runif(33,0,1))
+    colnames(vcf_df) = c("POS","CHROM","VAR")
+    print(vcf_df)
     
-    # Extract relevant genomic data
-    vcf_df <- data.frame(POS = as.numeric(info(vcf)$POS),
-                         CHROM = as.factor(info(vcf)$CHROM),
-                         VAR = runif(nrow(info(vcf)), 0, 1))  # Simulated variation scores
+    # # Extract relevant genomic data
+    # vcf_df <- data.frame(POS = as.numeric(info(vcf)$POS),
+    #                      CHROM = as.factor(info(vcf)$CHROM),
+    #                      VAR = runif(nrow(info(vcf)), 0, 1))  # Simulated variation scores
     
     # Filter based on selected chromosome
     vcf_filtered <- vcf_df[vcf_df$CHROM == input$chromosome, ]
-    
+    #vcf_filtered = vcf_df
+    print(vcf_filtered)
     # Aggregate into bins for heatmap visualization
+    #print(input$bin_size)
     vcf_binned <- vcf_filtered %>%
-      mutate(Binned_POS = floor(POS / input$bin_size) * input$bin_size) %>%
+      mutate(Binned_POS = floor(vcf_filtered$POS / input$bin_size) * input$bin_size) %>%
       group_by(Binned_POS) %>%
-      summarize(Mean_VAR = mean(VAR))
+      summarize(Mean_VAR = mean(vcf_filtered$VAR), nrow = 1)
     
     # Generate Heatmap
     output$heatmapPlot <- renderPlot({
-      heatmap_matrix <- matrix(vcf_binned$Mean_VAR, nrow = 1)
-      
-      Heatmap(heatmap_matrix,
+      heatmap_matrix <- matrix(vcf_binned$Mean_VAR,nrow=2)
+      print(vcf_binned)
+      print(heatmap_matrix)
+      heatmap(heatmap_matrix,
               name = "Genomic Variation",
               col = colorRamp2(c(min(vcf_binned$Mean_VAR), max(vcf_binned$Mean_VAR)), c("blue", "red")),
               column_title = paste("Genomic Variation Heatmap -", input$chromosome),
