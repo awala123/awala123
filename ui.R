@@ -177,7 +177,7 @@ server <- function(input, output) {
 
     #set brapi
     brapi_url  <- paste0(input$server1, "/brapi/v2")
-    call_url  <- paste0(brapi_url, "/variantsets", "/811p14","/calls","?page=0&pageSize=500")
+    call_url  <- paste(brapi_url, "variantsets", "811p14","calls","?page=0&pageSize=500",sep="/")
 
     #make request
     req <- httr2::request(utils::URLencode(call_url))
@@ -202,7 +202,7 @@ server <- function(input, output) {
     }, options = list(pageLength = 20, scrollX = TRUE))
     
     ##### plot
-    variant_url  <- paste0(brapi_url, "/variantsets", "/811p14","/variants","?page=0&pageSize=50")
+    variant_url  <- paste(brapi_url, "variantsets", "811p14","variants","?page=0&pageSize=50",sep="/")
     
     #make request
     req <- httr2::request(utils::URLencode(variant_url))
@@ -212,15 +212,15 @@ server <- function(input, output) {
     #handle repsonse
     response <- httr2::req_perform(req)
     flatten_results2 <- jsonlite::fromJSON(httr2::resp_body_string(response), flatten = TRUE)$result$data
-    
+
     # Generate the genome plot
     output$genomePlot <- renderPlot({
       req(flatten_results2)
       # Plotting code for genome visualization
-      ggplot(dataMat, aes(y = flatten_results2$start, x = flatten_results2$referenceName, color = flatten_results2$referenceBases)) +
+      ggplot(flatten_results2, aes(y = flatten_results2$start, x = flatten_results2$referenceName, color = flatten_results2$referenceBases)) +
         geom_point() +
         theme_minimal() +
-        labs(y = "Position", x = "Chromosome", title = "Plant Genome Variants")
+        labs(y = "Position", x = "Chromosome", title = "Plant Genome Variants",color = "Ref") 
     })
   })
   
